@@ -1,10 +1,23 @@
-"""Build and audit Linux wheels with a compiler supplied by an execution image.
+"""Optional auditwheel policy adapter for the generic container tools API."""
 
-See docs/manylinux.md for local Docker and remote execution configuration.
-"""
+load("//py:container.bzl", "py_wheel_process")
 
-load("//py/private/manylinux:toolchain.bzl", _manylinux_cc_toolchain = "manylinux_cc_toolchain")
-load("//py/private/manylinux:wheel.bzl", _py_manylinux_wheel = "py_manylinux_wheel")
+def py_auditwheel(name, wheel, platform, policy, platform_tag, **kwargs):
+    """Repair and validate a wheel with the execution toolchain's auditwheel.
 
-manylinux_cc_toolchain = _manylinux_cc_toolchain
-py_manylinux_wheel = _py_manylinux_wheel
+    Args:
+        name: Target name.
+        wheel: Input target providing PyWheelInfo.
+        platform: Target platform for the input wheel's native dependencies.
+        policy: Policy passed to auditwheel's --plat option.
+        platform_tag: Expected output platform tag, including any legacy aliases.
+        **kwargs: Other py_wheel_process attributes, e.g. exec_compatible_with.
+    """
+    py_wheel_process(
+        name = name,
+        wheel = wheel,
+        platform = platform,
+        platform_tag = platform_tag,
+        processor_args = ["repair", "--plat", policy, "--only-plat", "--wheel-dir", "{output_dir}", "{wheel}"],
+        **kwargs
+    )

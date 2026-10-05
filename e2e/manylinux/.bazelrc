@@ -7,7 +7,9 @@ build:docker --noexperimental_docker_use_customized_images
 build:docker --spawn_strategy=worker,sandboxed,docker,local
 build:docker --allowed_strategies_by_exec_platform=//:manylinux_2_28=docker
 build:docker --allowed_strategies_by_exec_platform=//:manylinux2014=docker
+build:docker --allowed_strategies_by_exec_platform=//:alternate=docker
 
 build:remote --spawn_strategy=remote,worker,sandboxed,local
 build:remote --allowed_strategies_by_exec_platform=//:manylinux_2_28=remote
 build:remote --allowed_strategies_by_exec_platform=//:manylinux2014=remote
+build:remote --allowed_strategies_by_exec_platform=//:alternate=remote

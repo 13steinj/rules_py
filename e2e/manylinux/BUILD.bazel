@@ -1,17 +1,53 @@
-load("@aspect_rules_py//py:manylinux.bzl", "manylinux_cc_toolchain", "py_manylinux_wheel")
+load("@aspect_rules_py//py:container.bzl", "py_wheel_process")
+load("@aspect_rules_py//py:manylinux.bzl", "py_auditwheel")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("@rules_python//python:packaging.bzl", "py_wheel", "py_wheel_dist")
+load(":processor.bzl", "copy_processor")
 
-constraint_setting(name = "libc")
+package(default_visibility = ["//visibility:public"])
 
-constraint_value(
-    name = "glibc_2_28",
-    constraint_setting = ":libc",
+copy_processor(
+    name = "copy_processor",
+    data = "processor_marker.txt",
+)
+
+py_wheel_process(
+    name = "wheel_copy",
+    exec_compatible_with = [":env_2_28"],
+    platform = ":manylinux_2_28",
+    platform_tag = "linux_x86_64",
+    processor_args = [
+        "{wheel}",
+        "{output_dir}/",
+    ],
+    processor_tool = "copy",
+    wheel = ":wheel",
+)
+
+py_wheel_dist(
+    name = "dist_copy",
+    out = "dist_copy",
+    wheel = ":wheel_copy",
+)
+
+constraint_setting(
+    name = "build_environment",
+    default_constraint_value = ":host",
 )
 
 constraint_value(
-    name = "glibc_2_17",
-    constraint_setting = ":libc",
+    name = "host",
+    constraint_setting = ":build_environment",
+)
+
+constraint_value(
+    name = "env_2_28",
+    constraint_setting = ":build_environment",
+)
+
+constraint_value(
+    name = "env_2014",
+    constraint_setting = ":build_environment",
 )
 
 platform(
@@ -19,7 +55,7 @@ platform(
     constraint_values = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
-        ":glibc_2_28",
+        ":env_2_28",
     ],
     exec_properties = {
         "container-image": "docker://quay.io/pypa/manylinux_2_28_x86_64@sha256:39df0042d5cc900b085aa25a0659368b42a0006c54c474299b785b44c1b4ff82",
@@ -31,25 +67,11 @@ platform(
     constraint_values = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
-        ":glibc_2_17",
+        ":env_2014",
     ],
     exec_properties = {
         "container-image": "docker://quay.io/pypa/manylinux2014_x86_64@sha256:f6077fab327d7823d7cee287b93ef63efe3af0e234add7503121247c1475ebec",
     },
-)
-
-manylinux_cc_toolchain(
-    name = "gcc_2_28",
-    compiler_root = "/opt/rh/gcc-toolset-14/root/usr",
-    exec_constraint = ":glibc_2_28",
-    target_constraint = ":glibc_2_28",
-)
-
-manylinux_cc_toolchain(
-    name = "gcc_2014",
-    compiler_root = "/opt/rh/devtoolset-10/root/usr",
-    exec_constraint = ":glibc_2_17",
-    target_constraint = ":glibc_2_17",
 )
 
 cc_binary(
@@ -69,18 +91,20 @@ py_wheel(
     deps = [":answer.so"],
 )
 
-py_manylinux_wheel(
+py_auditwheel(
     name = "wheel_2_28",
-    exec_compatible_with = [":glibc_2_28"],
+    exec_compatible_with = [":env_2_28"],
     platform = ":manylinux_2_28",
+    platform_tag = "manylinux_2_28_x86_64",
     policy = "manylinux_2_28_x86_64",
     wheel = ":wheel",
 )
 
-py_manylinux_wheel(
+py_auditwheel(
     name = "wheel_2014",
-    exec_compatible_with = [":glibc_2_17"],
+    exec_compatible_with = [":env_2014"],
     platform = ":manylinux2014",
+    platform_tag = "manylinux2014_x86_64.manylinux_2_17_x86_64",
     policy = "manylinux2014_x86_64",
     wheel = ":wheel",
 )
@@ -123,20 +147,71 @@ py_wheel(
     deps = [":future.so"],
 )
 
-py_manylinux_wheel(
+py_auditwheel(
     name = "future_2_28",
-    exec_compatible_with = [":glibc_2_28"],
+    exec_compatible_with = [":env_2_28"],
     platform = ":manylinux_2_28",
+    platform_tag = "manylinux_2_28_x86_64",
     policy = "manylinux_2_28_x86_64",
     tags = ["manual"],
     wheel = ":future_wheel",
 )
 
-py_manylinux_wheel(
+py_auditwheel(
     name = "rejected_2014",
-    exec_compatible_with = [":glibc_2_17"],
+    exec_compatible_with = [":env_2014"],
     platform = ":manylinux2014",
+    platform_tag = "manylinux2014_x86_64.manylinux_2_17_x86_64",
     policy = "manylinux2014_x86_64",
     tags = ["manual"],
     wheel = ":future_2_28",
+)
+
+constraint_value(
+    name = "env_alternate",
+    constraint_setting = ":build_environment",
+)
+
+# Same image, different tool paths, interpreter and fixed shim arguments.
+platform(
+    name = "alternate",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        ":env_alternate",
+    ],
+    exec_properties = {"container-image": "docker://quay.io/pypa/manylinux_2_28_x86_64@sha256:39df0042d5cc900b085aa25a0659368b42a0006c54c474299b785b44c1b4ff82"},
+)
+
+cc_binary(
+    name = "alternate_answer.so",
+    srcs = ["answer.cc"],
+    defines = ["EXPECT_CONTAINER_SHIM"],
+    linkshared = True,
+    linkstatic = True,
+)
+
+py_wheel(
+    name = "alternate_wheel",
+    abi = "none",
+    distribution = "alternate_answer",
+    platform = "linux_x86_64",
+    python_tag = "py3",
+    version = "1.0.0",
+    deps = [":alternate_answer.so"],
+)
+
+py_auditwheel(
+    name = "wheel_alternate",
+    exec_compatible_with = [":env_alternate"],
+    platform = ":alternate",
+    platform_tag = "manylinux_2_28_x86_64",
+    policy = "manylinux_2_28_x86_64",
+    wheel = ":alternate_wheel",
+)
+
+py_wheel_dist(
+    name = "dist_alternate",
+    out = "dist_alternate",
+    wheel = ":wheel_alternate",
 )

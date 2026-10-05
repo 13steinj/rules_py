@@ -1,0 +1,17 @@
+load(":profiles.bzl", "profile_toolchains")
+
+# A non-root package exercises source shim paths across repository boundaries.
+profile_toolchains(
+    name = "2_28",
+    compiler_root = "/opt/rh/gcc-toolset-14/root/usr",
+)
+
+profile_toolchains(
+    name = "2014",
+    compiler_root = "/opt/rh/devtoolset-10/root/usr",
+)
+
+profile_toolchains(
+    name = "alternate",
+    compiler_root = "/opt/rh/gcc-toolset-14/root/usr",
+)

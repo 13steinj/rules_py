@@ -12,7 +12,9 @@ with tempfile.TemporaryDirectory() as tmp, zipfile.ZipFile(wheel) as archive:
     assert len(metadata) == 1
     assert "manylinux" in archive.read(metadata[0]).decode()
     library = [
-        n for n in archive.namelist() if n.endswith("/answer.so") or n == "answer.so"
+        n
+        for n in archive.namelist()
+        if Path(n).name in ("answer.so", "alternate_answer.so")
     ]
     assert len(library) == 1
     archive.extract(library[0], tmp)

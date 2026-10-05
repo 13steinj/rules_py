@@ -20,6 +20,80 @@ use_repo(interpreters, "python_interpreters")
 
 register_toolchains("@python_interpreters//:all")
 
-register_toolchains("//:gcc_2_28", "//:gcc_2014")
+container_tools = use_repo_rule("@aspect_rules_py//py:container.bzl", "container_tools")
 
-register_execution_platforms("@platforms//host", "//:manylinux_2_28", "//:manylinux2014")
+container_tools(
+    name = "tools_2_28",
+    cc_toolchain_config = "//toolchains:gcc_2_28_config",
+    env = {"PATH": "/opt/rh/gcc-toolset-14/root/usr/bin:/usr/local/bin:/usr/bin:/bin"},
+    tools = {
+        "ar": "/opt/rh/gcc-toolset-14/root/usr/bin/ar",
+        "cpp": "/opt/rh/gcc-toolset-14/root/usr/bin/cpp",
+        "gcc": "/opt/rh/gcc-toolset-14/root/usr/bin/gcc",
+        "gcov": "/opt/rh/gcc-toolset-14/root/usr/bin/gcov",
+        "ld": "/opt/rh/gcc-toolset-14/root/usr/bin/ld",
+        "nm": "/opt/rh/gcc-toolset-14/root/usr/bin/nm",
+        "objcopy": "/opt/rh/gcc-toolset-14/root/usr/bin/objcopy",
+        "objdump": "/opt/rh/gcc-toolset-14/root/usr/bin/objdump",
+        "strip": "/opt/rh/gcc-toolset-14/root/usr/bin/strip",
+        "python": "/opt/python/cp311-cp311/bin/python",
+        "wheel_processor": "/usr/local/bin/auditwheel",
+    },
+)
+
+container_tools(
+    name = "tools_2014",
+    cc_toolchain_config = "//toolchains:gcc_2014_config",
+    env = {"PATH": "/opt/rh/devtoolset-10/root/usr/bin:/usr/local/bin:/usr/bin:/bin"},
+    tools = {
+        "ar": "/opt/rh/devtoolset-10/root/usr/bin/ar",
+        "cpp": "/opt/rh/devtoolset-10/root/usr/bin/cpp",
+        "gcc": "/opt/rh/devtoolset-10/root/usr/bin/gcc",
+        "gcov": "/opt/rh/devtoolset-10/root/usr/bin/gcov",
+        "ld": "/opt/rh/devtoolset-10/root/usr/bin/ld",
+        "nm": "/opt/rh/devtoolset-10/root/usr/bin/nm",
+        "objcopy": "/opt/rh/devtoolset-10/root/usr/bin/objcopy",
+        "objdump": "/opt/rh/devtoolset-10/root/usr/bin/objdump",
+        "strip": "/opt/rh/devtoolset-10/root/usr/bin/strip",
+        "python": "/opt/python/cp311-cp311/bin/python",
+        "wheel_processor": "/usr/local/bin/auditwheel",
+    },
+)
+
+container_tools(
+    name = "tools_alternate",
+    args = {
+        "gcc": ["-DCONTAINER_SHIM_VALUE=42"],
+        "wheel_processor": ["auditwheel"],
+    },
+    cc_toolchain_config = "//toolchains:gcc_alternate_config",
+    env = {"PATH": "/opt/rh/gcc-toolset-14/root/usr/bin:/usr/local/bin:/usr/bin:/bin"},
+    tools = {
+        "ar": "ar",
+        "cpp": "cpp",
+        "gcc": "gcc",
+        "gcov": "gcov",
+        "ld": "ld",
+        "nm": "nm",
+        "objcopy": "objcopy",
+        "objdump": "objdump",
+        "strip": "strip",
+        "python": "/opt/python/cp312-cp312/bin/python",
+        "wheel_processor": "/usr/bin/env",
+    },
+)
+
+register_toolchains("//toolchains:all")
+
+register_execution_platforms("@platforms//host", "//:manylinux_2_28", "//:manylinux2014", "//:alternate")
+
+container_tools(
+    name = "quote_tools",
+    args = {"probe": [
+        "-c",
+        "import os, sys; assert os.environ['QUOTE_SENTINEL'] == sys.argv[1]; assert sys.argv[2:] == ['trailing argument']; print('quoted shim passed')",
+        'spaces \'single\' "double" $HOME `false` $(false); * [x]',
+    ]},
+    env = {"QUOTE_SENTINEL": 'spaces \'single\' "double" $HOME `false` $(false); * [x]'},
+    tools = {"probe": "/opt/python/cp312-cp312/bin/python"},
+)

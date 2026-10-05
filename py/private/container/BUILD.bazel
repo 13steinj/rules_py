@@ -1,4 +1,4 @@
 exports_files(
-    ["repair.py"],
+    ["process_wheel.py"],
     visibility = ["//visibility:public"],
 )
