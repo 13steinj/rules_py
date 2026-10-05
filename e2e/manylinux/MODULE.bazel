@@ -1,0 +1,25 @@
+module(name = "manylinux_test")
+
+bazel_dep(name = "aspect_rules_py")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.18")
+bazel_dep(name = "rules_python", version = "1.9.2")
+
+local_path_override(
+    module_name = "aspect_rules_py",
+    path = "../..",
+)
+
+interpreters = use_extension("@aspect_rules_py//py:extensions.bzl", "python_interpreters")
+interpreters.configure(releases = [
+    "20260728",
+    "20260718",
+])
+interpreters.toolchain(python_version = "3.11")
+use_repo(interpreters, "python_interpreters")
+
+register_toolchains("@python_interpreters//:all")
+
+register_toolchains("//:gcc_2_28", "//:gcc_2014")
+
+register_execution_platforms("@platforms//host", "//:manylinux_2_28", "//:manylinux2014")

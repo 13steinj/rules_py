@@ -1,0 +1,142 @@
+load("@aspect_rules_py//py:manylinux.bzl", "manylinux_cc_toolchain", "py_manylinux_wheel")
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("@rules_python//python:packaging.bzl", "py_wheel", "py_wheel_dist")
+
+constraint_setting(name = "libc")
+
+constraint_value(
+    name = "glibc_2_28",
+    constraint_setting = ":libc",
+)
+
+constraint_value(
+    name = "glibc_2_17",
+    constraint_setting = ":libc",
+)
+
+platform(
+    name = "manylinux_2_28",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        ":glibc_2_28",
+    ],
+    exec_properties = {
+        "container-image": "docker://quay.io/pypa/manylinux_2_28_x86_64@sha256:39df0042d5cc900b085aa25a0659368b42a0006c54c474299b785b44c1b4ff82",
+    },
+)
+
+platform(
+    name = "manylinux2014",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+        ":glibc_2_17",
+    ],
+    exec_properties = {
+        "container-image": "docker://quay.io/pypa/manylinux2014_x86_64@sha256:f6077fab327d7823d7cee287b93ef63efe3af0e234add7503121247c1475ebec",
+    },
+)
+
+manylinux_cc_toolchain(
+    name = "gcc_2_28",
+    compiler_root = "/opt/rh/gcc-toolset-14/root/usr",
+    exec_constraint = ":glibc_2_28",
+    target_constraint = ":glibc_2_28",
+)
+
+manylinux_cc_toolchain(
+    name = "gcc_2014",
+    compiler_root = "/opt/rh/devtoolset-10/root/usr",
+    exec_constraint = ":glibc_2_17",
+    target_constraint = ":glibc_2_17",
+)
+
+cc_binary(
+    name = "answer.so",
+    srcs = ["answer.cc"],
+    linkshared = True,
+    linkstatic = True,
+)
+
+py_wheel(
+    name = "wheel",
+    abi = "none",
+    distribution = "manylinux_answer",
+    platform = "linux_x86_64",
+    python_tag = "py3",
+    version = "1.0.0",
+    deps = [":answer.so"],
+)
+
+py_manylinux_wheel(
+    name = "wheel_2_28",
+    exec_compatible_with = [":glibc_2_28"],
+    platform = ":manylinux_2_28",
+    policy = "manylinux_2_28_x86_64",
+    wheel = ":wheel",
+)
+
+py_manylinux_wheel(
+    name = "wheel_2014",
+    exec_compatible_with = [":glibc_2_17"],
+    platform = ":manylinux2014",
+    policy = "manylinux2014_x86_64",
+    wheel = ":wheel",
+)
+
+py_wheel_dist(
+    name = "dist_2_28",
+    out = "dist_2_28",
+    wheel = ":wheel_2_28",
+)
+
+py_wheel_dist(
+    name = "dist_2014",
+    out = "dist_2014",
+    wheel = ":wheel_2014",
+)
+
+# Also build an ordinary host action in the same invocation. The execution log
+# check verifies it was not dispatched to Docker.
+genrule(
+    name = "host_action",
+    outs = ["host.txt"],
+    cmd = "echo host > $@",
+)
+
+cc_binary(
+    name = "future.so",
+    srcs = ["future.cc"],
+    linkshared = True,
+    linkstatic = True,
+    tags = ["manual"],
+)
+
+py_wheel(
+    name = "future_wheel",
+    distribution = "future_glibc",
+    platform = "linux_x86_64",
+    python_tag = "py3",
+    tags = ["manual"],
+    version = "1.0.0",
+    deps = [":future.so"],
+)
+
+py_manylinux_wheel(
+    name = "future_2_28",
+    exec_compatible_with = [":glibc_2_28"],
+    platform = ":manylinux_2_28",
+    policy = "manylinux_2_28_x86_64",
+    tags = ["manual"],
+    wheel = ":future_wheel",
+)
+
+py_manylinux_wheel(
+    name = "rejected_2014",
+    exec_compatible_with = [":glibc_2_17"],
+    platform = ":manylinux2014",
+    policy = "manylinux2014_x86_64",
+    tags = ["manual"],
+    wheel = ":future_2_28",
+)
